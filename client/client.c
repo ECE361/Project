@@ -43,6 +43,7 @@
 #define QUERY 11 //A request from the client of a list of online users and available sessions 
 #define QU_ACK 12 //List of users online and their session IDS
 
+//Yo what is good dawgs 
 #define STDIN 0 
 
 //this is testing for github
