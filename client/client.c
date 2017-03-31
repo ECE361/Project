@@ -45,6 +45,8 @@
 
 #define STDIN 0 
 
+//this is testing for github
+
 struct addrinfo {
     int ai_flags;
     int ai_family;
