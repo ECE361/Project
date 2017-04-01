@@ -43,10 +43,8 @@
 #define QUERY 11 //A request from the client of a list of online users and available sessions 
 #define QU_ACK 12 //List of users online and their session IDS
 
-//Yo what is good dawgs 
 #define STDIN 0 
 
-//this is testing for github
 
 struct addrinfo {
     int ai_flags;
@@ -428,6 +426,52 @@ int receiveHandler() {
     return 0;
 }
 
+void writeToFile(char* clientID, char* clientPass){
+    
+    char* buf;
+    char* buf2;
+    char result[MAXBUFLEN];
+    
+    FILE *fp = fopen("/homes/m/moonjon1/Desktop/Server-LoginInformation.txt", "a");
+    fseek(fp,0L, SEEK_END);
+    buf = "\nClientID: ";
+    strcpy(result, buf);
+    strcat(result, clientID);
+    buf2 = "\nPassword: ";
+    strcat(result, buf2);
+    strcat(result, clientPass);
+    
+    fwrite(result, strlen(result), 1, fp);
+    fclose(fp);
+    
+}
+
+int checkUsername(char* clientID){
+    
+    char database[MAXBUFLEN];
+    char buf[MAXBUFLEN];
+    int first = 0;
+    
+    FILE *fp = fopen("/homes/m/moonjon1/Desktop/Server-LoginInformation.txt", "r");
+    fseek(fp, 0L, SEEK_SET);
+    
+    while(fgets(buf, MAXBUFLEN, fp) != NULL){
+        if(first = 0){
+            first = 1;
+            strcpy(database, buf);
+        }
+        strcat(database, buf);
+    }
+    fclose(fp);
+    
+    if(strstr(database, clientID) == NULL)
+        return 0;
+    
+    else
+        return -1;
+    
+}
+
 int main(int argc, char *argv[]) {
 
     //parameters for parser
@@ -513,6 +557,33 @@ loopOne:
                 continue;
             }
             break;
+        }
+        
+        if (strcmp(command, "/register") == 0) {
+            if (uargc != 2) {
+                printf("register: required parameters <clientID> <password> \n");
+                continue;
+            }
+            
+            //read in parameters
+            uargv = (char**) malloc(sizeof (char**));
+
+            for (i = 0; i < uargc; i++) {
+                uargv[i] = (char*) malloc(sizeof (char*));
+                uargv[i] = strtok(NULL, " ");
+                //printf("argv is %s \n", uargv[i]);
+            }
+            int error = 0;
+            error = checkUsername(uargv[0]);
+            if(error){
+                printf("Username is already taken\n");
+                continue;
+            }
+            
+            writeToFile(uargv[0],uargv[1]);
+            printf("registration complete, please log in\n");
+            
+            continue;
         }
 
         printf("error: invalid command \n");
