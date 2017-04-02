@@ -1,3 +1,5 @@
+
+//gnu -lreadline some.c -o some
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,7 +15,37 @@
 #include <sys/select.h>
 #include <errno.h>
 #include <time.h>
+#include <ncurses.h>
 
+#include <termios.h>
+#include <stropts.h>
+//#include "readline.h"
+//#include <conio.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+#include<curses.h>
+#include <term.h>
+/* These define the scan codes(IBM) for the keys. All numbers are in decimal.*/
+#define PAGE_UP     73
+#define HOME        71
+#define END         79
+#define PAGE_DOWN   81
+#define UP_ARROW    72
+#define LEFT_ARROW  75
+#define DOWN_ARROW  80
+#define RIGHT_ARROW 77
+#define F1          59
+#define F2          60
+#define F3          61
+#define F4          62
+#define F5          63
+#define F6          64
+#define F7          65
+#define F8          66
+#define F9          67
+#define F10         68
+
+#define LEN 10
 #define MAX_DATA  1025
 #define MAX_NAME 100
 #define BUFFER 2000
@@ -24,7 +56,7 @@
 //Used for text conferencing where the value of 0 corresponds to an unconnected conference session  
 #define NOSESSION  0
 
-//Max number of sessions that can be present at once 
+//Max number of sessions that can be present at once X
 #define MAXCONFERENCESESSIONS 100
 
 
@@ -44,7 +76,10 @@
 #define QU_ACK 12 //List of users online and their session IDS
 
 #define STDIN 0 
-
+char** my_completion(const char*, int, int);
+char* my_generator(const char*, int);
+char * dupstr(char*);
+void *xmalloc(int);
 
 struct addrinfo {
     int ai_flags;
@@ -72,6 +107,9 @@ char curSesh[MAXBUFLEN]; /*used to keep track of the currently joined session*/
 int wantQuit = 0; /*used to keep track of whether or not the user issued the quit command*/
 int wantLeave = 0; /*used to keep track of whether or not the user issued leavesession*/
 
+
+//autocomplete commands, you can add a command if you want something to be autocorrected 
+char* cmd [] = {"/login", "127.0.0.1", "/register", "/quit", "/logout", "/createsession", "/joinsession"};
 //function to tie all the information into correct packet form
 
 char* packetize(int type, int size, char* source, char* data, int packetSize) {
@@ -207,11 +245,11 @@ int join_session(char* sessionID) {
     garbage2 = strtok(NULL, ":");
     garbage3 = strtok(NULL, ":");
     error = strtok(NULL, ":");
-  
-    if(strlen(error) < 10)
+
+    if (strlen(error) < 10)
         inSession = 1;
-    
-    
+
+
     /*if(error != NULL){
         printf("%s\n", error);
         return -1;
@@ -286,7 +324,7 @@ int logout() {
 
     loggedin = 0;
     //printf("sent %d to server \n", numbytes);
-    
+
     return 0;
 }
 
@@ -317,14 +355,14 @@ int list() {
     char* packet = packetize(QUERY, 0, username, "", packetSize);
     char result[MAXBUFLEN];
 
-   // printf("packet to send: %s\n", packet);
+    // printf("packet to send: %s\n", packet);
 
     if ((numbytes = send(sockfd, packet, packetSize, 0)) == -1) {
         perror("client: send");
         exit(1);
     }
 
-   // printf("sent %d to server \n", numbytes);
+    // printf("sent %d to server \n", numbytes);
 
     //while (1) {
 
@@ -345,8 +383,8 @@ int list() {
     garbage2 = strtok(NULL, ":");
     garbage3 = strtok(NULL, ":");
     response = strtok(NULL, ":");
-    
-    if(response != NULL)
+
+    if (response != NULL)
         printf("%s\n", response);
     else
         printf(" \n");
@@ -355,18 +393,24 @@ int list() {
 }
 
 int userHandler() {
-    
+
     int numbytes;
     char userInput[MAXBUFLEN];
     char command[MAXBUFLEN];
+
+    //Configure readline for autocomplete path
+    //    rl_bind_key('\t',rl_complete); 
     fgets(userInput, sizeof (userInput), stdin);
-    
+//    autoComplete(userInput); 
+    //    userInput_tabcomplete(userInput);
+
+
     int i = 0;
-        while (userInput[i] != '\0') {
-            if (userInput[i] == '\n')
-                userInput[i] = '\0';
-            i++;
-        }
+    while (userInput[i] != '\0') {
+        if (userInput[i] == '\n')
+            userInput[i] = '\0';
+        i++;
+    }
 
     strcpy(command, userInput);
     char* yes = strtok(command, " ");
@@ -384,8 +428,8 @@ int userHandler() {
         list();
         return 0;
     }
-    
-     if (strcmp(yes, "/logout") == 0) {
+
+    if (strcmp(yes, "/logout") == 0) {
         logout();
         return 0;
     }
@@ -393,14 +437,14 @@ int userHandler() {
     int packetSize = hostSize + 4 + 2 + strlen(userInput) + 1;
     char* packet = packetize(MESSAGE, strlen(userInput), username, userInput, packetSize);
 
-   // printf("packet to send: %s\n", packet);
+    // printf("packet to send: %s\n", packet);
 
     if ((numbytes = send(sockfd, packet, packetSize, 0)) == -1) {
         perror("client: send");
         exit(1);
     }
 
-   // printf("sent %d to server \n", numbytes);
+    // printf("sent %d to server \n", numbytes);
 }
 
 int receiveHandler() {
@@ -426,56 +470,189 @@ int receiveHandler() {
     return 0;
 }
 
-void writeToFile(char* clientID, char* clientPass){
-    
+void writeToFile(char* clientID, char* clientPass) {
+
     char* buf;
     char* buf2;
     char result[MAXBUFLEN];
-    
+
     FILE *fp = fopen("/homes/m/moonjon1/Desktop/Server-LoginInformation.txt", "a");
-    fseek(fp,0L, SEEK_END);
+    fseek(fp, 0L, SEEK_END);
     buf = "\nClientID: ";
     strcpy(result, buf);
     strcat(result, clientID);
     buf2 = "\nPassword: ";
     strcat(result, buf2);
     strcat(result, clientPass);
-    
+
     fwrite(result, strlen(result), 1, fp);
     fclose(fp);
-    
+
 }
 
-int checkUsername(char* clientID){
-    
+int checkUsername(char* clientID) {
+
     char database[MAXBUFLEN];
     char buf[MAXBUFLEN];
     int first = 0;
-    
+
     FILE *fp = fopen("/homes/m/moonjon1/Desktop/Server-LoginInformation.txt", "r");
     fseek(fp, 0L, SEEK_SET);
-    
-    while(fgets(buf, MAXBUFLEN, fp) != NULL){
-        if(first = 0){
+
+    while (autoComplete(buf) != NULL) {
+        if (first = 0) {
             first = 1;
             strcpy(database, buf);
         }
         strcat(database, buf);
     }
     fclose(fp);
-    
-    if(strstr(database, clientID) == NULL)
+
+    if (strstr(database, clientID) == NULL)
         return 0;
-    
+
     else
         return -1;
-    
+
 }
 
+void userInput_tabcomplete(char *userInput) {
+
+    while ((userInput = readline("prompt> ")) != NULL) { //Prompt the user for input
+        //Currently we just print out the input line
+
+
+        //And exit if the user requested it
+        if (strcmp(userInput, "exit") == 0 || strcmp(userInput, "quit") == 0) {
+            break;
+        }
+
+        //readline() allocates a new string for every line,
+        //so we need to free the current one after we've finished
+        free(userInput);
+        userInput = NULL; //Mark it null to show we freed it
+    }
+
+    //If the buffer wasn't freed in the main loop we need to free it now
+    // Note: if buf is NULL free does nothing
+    free(userInput);
+
+}
+
+char** my_completion(const char * text, int start, int end) {
+    char **matches;
+
+    matches = (char **) NULL;
+
+    matches = rl_completion_matches((char*) text, &my_generator);
+
+    return (matches);
+
+}
+
+char* my_generator(const char* text, int state) {
+    static int list_index, len;
+    char *name;
+
+    if (!state) {
+        list_index = 0;
+        len = strlen(text);
+    }
+
+    while (name = cmd[list_index]) {
+        list_index++;
+
+        if (strncmp(name, text, len) == 0)
+            return (dupstr(name));
+    }
+
+    /* If no names matched, then return NULL. */
+    return ((char *) NULL);
+
+}
+
+char * dupstr(char* s) {
+    char *r;
+
+    r = (char*) xmalloc((strlen(s) + LEN));
+    strcpy(r, s);
+    return (r);
+}
+
+void * xmalloc(int size) {
+    void *buf;
+
+    buf = malloc(size);
+    if (!buf) {
+        fprintf(stderr, "Error: Out of memory. Exiting.'n");
+        exit(1);
+    }
+
+    return buf;
+}
+
+int autoComplete(char userInput[]) {
+    char *buf;
+    rl_bind_key('\t', rl_complete);
+    rl_completer_quote_characters = strdup("\"\'");
+
+    rl_attempted_completion_function = my_completion;
+
+    while ((buf = readline("")) != NULL) {
+        //enable auto-complete
+        if (strcmp(buf, "") != 0) {
+            add_history(buf);
+        }
+
+        break;
+        if (buf != NULL) {
+            free(buf);
+        }
+        buf = NULL;
+    }
+    if (buf == NULL) {
+        return 0;
+    }
+
+    strcpy(userInput, buf);
+    if (buf != NULL) {
+        free(buf);
+        buf = NULL;
+    }
+    return 1;
+}
+
+int kbhit() {
+ struct termios oldt, newt;
+  int ch;
+  int oldf;
+ 
+  tcgetattr(STDIN_FILENO, &oldt);
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+ 
+  ch = getchar();
+ 
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+  fcntl(STDIN_FILENO, F_SETFL, oldf);
+ 
+  if(ch != EOF)
+  {
+    ungetc(ch, stdin);
+    return 1;
+  }
+ 
+  return 0;
+}
+//Referenced to https://cboard.cprogramming.com/c-programming/63166-kbhit-linux.html
 int main(int argc, char *argv[]) {
 
+    
     //parameters for parser
-    char userInput[BUFFER];
+
     char* command;
     int uargc = 0;
     //dynamic string array that holds user inputs
@@ -492,7 +669,10 @@ loopOne:
     //parse user input
     while (1) {
         printf("please enter one of the following commands:\n/login\n/logout\n/register\n/quit\n");
-        fgets(userInput, sizeof (userInput), stdin);
+        //        fgets(userInput, sizeof (userInput), stdin);
+
+        char userInput[BUFFER] = {'\0'};
+        autoComplete(userInput);
         uargc = 0;
 
         //removing the trailing newline character
@@ -558,13 +738,13 @@ loopOne:
             }
             break;
         }
-        
+
         if (strcmp(command, "/register") == 0) {
             if (uargc != 2) {
                 printf("register: required parameters <clientID> <password> \n");
                 continue;
             }
-            
+
             //read in parameters
             uargv = (char**) malloc(sizeof (char**));
 
@@ -575,14 +755,14 @@ loopOne:
             }
             int error = 0;
             error = checkUsername(uargv[0]);
-            if(error){
+            if (error) {
                 printf("Username is already taken\n");
                 continue;
             }
-            
-            writeToFile(uargv[0],uargv[1]);
+
+            writeToFile(uargv[0], uargv[1]);
             printf("registration complete, please log in\n");
-            
+
             continue;
         }
 
@@ -593,8 +773,8 @@ loopTwo:
 
     while (1) {
         printf("please enter one of the following commands:\n/joinsession\n/createsession\n/list\n/quit\n");
-
-        fgets(userInput, sizeof (userInput), stdin);
+        char userInput[BUFFER] = {'\0'};
+        autoComplete(userInput);
         uargc = 0;
 
         //removing the trailing newline character
@@ -626,7 +806,7 @@ loopTwo:
             }
 
             uargv[0] = strtok(NULL, " ");
-           // printf("argv is %s \n", uargv[0]);
+            // printf("argv is %s \n", uargv[0]);
 
             int error = join_session(uargv[0]);
             if (!inSession) {
@@ -635,7 +815,7 @@ loopTwo:
             }
 
             printf("successfully joined sesesion %s\n", argv[0]);
-           // inSession = 1;
+            // inSession = 1;
             break;
         }
 
@@ -689,14 +869,19 @@ loopTwo:
         //if STDIN is flagged, receive user input then send it
         //if the input is a command, handle accordingly
         //if socfd is flagged, receive packet from server
-        
+        //        rl_bind_key('\t', rl_complete);
+        //Use our function for auto-complete
+        //        rl_attempted_completion_functionC = auto_complete;
+        //Tell readline to handle double and single quotes for us
+        //        rl_completer_quote_characters = strdup("\"\'");
+
         FD_ZERO(&readfds);
         FD_SET(STDIN, &readfds);
         FD_SET(sockfd, &readfds);
         struct timeval tv;
         tv.tv_sec = 10;
         tv.tv_usec = 0;
-        
+
         select(sockfd + 1, &readfds, NULL, NULL, &tv);
 
         if (FD_ISSET(sockfd, &readfds)) {
@@ -704,7 +889,7 @@ loopTwo:
             continue;
         }
 
-        if (FD_ISSET(STDIN, &readfds)) {
+        if (FD_ISSET(STDIN,&readfds)) {
             userHandler();
             continue;
         }

@@ -39,7 +39,7 @@ OBJECTFILES= \
 
 
 # C Compiler Flags
-CFLAGS=
+CFLAGS=-lreadline
 
 # CC Compiler Flags
 CCFLAGS=
@@ -52,7 +52,7 @@ FFLAGS=
 ASFLAGS=
 
 # Link Libraries and Options
-LDLIBSOPTIONS=
+LDLIBSOPTIONS=-L/usr/local/lib -L/usr/local/include -lm -ldl
 
 # Build Targets
 .build-conf: ${BUILD_SUBPROJECTS}

@@ -37,7 +37,18 @@
       <compileType>
         <cTool>
           <standard>3</standard>
+          <commandLine>-lreadline</commandLine>
         </cTool>
+        <linkerTool>
+          <linkerAddLib>
+            <pElem>/usr/local/lib</pElem>
+            <pElem>/usr/local/include</pElem>
+          </linkerAddLib>
+          <linkerLibItems>
+            <linkerLibStdlibItem>Mathematics</linkerLibStdlibItem>
+            <linkerLibStdlibItem>DynamicLinking</linkerLibStdlibItem>
+          </linkerLibItems>
+        </linkerTool>
       </compileType>
       <item path="client.c" ex="false" tool="0" flavor2="0">
       </item>
