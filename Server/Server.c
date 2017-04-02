@@ -522,7 +522,7 @@ void sendQueryMessage(struct clients currentClients[], struct serverMessage pack
             //            strcpy(online,"Client ID: %s on session %d\n", currentClients[x].ID, currentClients[x].sessionID); 
             snprintf(temp, sizeof (temp), "Client ID %s on session %d\n", currentClients[x].ID, currentClients[x].sessionID);
             copyInformationOver(online, temp, &index);
-            
+
         }
     }
     printf("Server: Sending list of online users to client ID %s\n", packet.source);
@@ -642,9 +642,16 @@ void removeClient_socket(int socket, struct clients currentClients[]) {
         if (currentClients[x].portNumber == socket) {
             //initiate everything to NULL
             arrayToZero(&currentClients[x]);
-            printf("Server: Client ID %s has disconnected from the server and left conference session %d \n", currentClients[x].ID, currentClients[x].sessionID);
-            currentClients[x].portNumber = 0;
-            currentClients[x].sessionID = 0;
+            if (currentClients[x].sessionID == 0) {
+                printf("Server: Client ID %s has disconnected from the server\n", currentClients[x].ID);
+                currentClients[x].portNumber = 0;
+                currentClients[x].sessionID = 0;
+
+            } else{
+                printf("Server: Client ID %s has disconnected from the server and left conference session %d\n", currentClients[x].ID, currentClients[x].sessionID);
+                currentClients[x].portNumber = 0;
+                currentClients[x].sessionID = 0;
+            }
 
         }
     }
