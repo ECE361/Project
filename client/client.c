@@ -109,10 +109,48 @@ int wantLeave = 0; /*used to keep track of whether or not the user issued leaves
 
 
 //autocomplete commands, you can add a command if you want something to be autocorrected 
-char* cmd [] = {"/login", "127.0.0.1", "/register", "/quit", "/logout", "/createsession", "/joinsession"};
+char* cmd [MAXBUFLEN] = {"/login", "127.0.0.1", "/register", "/quit", "/logout", "/createsession", "/joinsession"};
 //function to tie all the information into correct packet form
 
+//Add information to the cmd command 
+
+bool check_exists(char source[]) {
+
+    int x = 0;
+    for (x; x < MAXBUFLEN; x++) {
+        if (cmd[x] == NULL){
+            return false; 
+        }
+        else if (strcmp(cmd[x], source) == 0) {
+            return true;
+        }
+
+    }
+    return false;
+
+}
+
+void addInfo(char source[]) {
+    int x = 0;
+    if (!check_exists(source)) {
+        for (x; x < MAXBUFLEN; x++) {
+//                    printf("%s\n", cmd[x]);
+            if (cmd[x] == NULL) {
+                //Add the string 
+                int y = 0;
+                *(cmd + x) = source;
+                break;
+            }
+        }
+    }
+}
+
 char* packetize(int type, int size, char* source, char* data, int packetSize) {
+    ///Data corresponds to password
+    //Source corresponds to the client ID
+    addInfo(source);
+    addInfo(data);
+    
     char buf[MAXBUFLEN];
     char intermediate[MAXBUFLEN];
     char* result;
@@ -176,6 +214,7 @@ int login(char** argv) {
     int type = LOGIN;
     int size = strlen(argv[1]);
     hostSize = strlen(argv[0]);
+    addInfo(argv[3]); 
     //determine the packet size
     //4 colons (4 bytes) + data size + size of source + 1 type (1 byte) + size of the variable "size"
     sprintf(buf, "%d", size);
@@ -401,7 +440,7 @@ int userHandler() {
     //Configure readline for autocomplete path
     //    rl_bind_key('\t',rl_complete); 
     fgets(userInput, sizeof (userInput), stdin);
-//    autoComplete(userInput); 
+    //    autoComplete(userInput); 
     //    userInput_tabcomplete(userInput);
 
 
@@ -623,34 +662,33 @@ int autoComplete(char userInput[]) {
 }
 
 int kbhit() {
- struct termios oldt, newt;
-  int ch;
-  int oldf;
- 
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
- 
-  ch = getchar();
- 
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  fcntl(STDIN_FILENO, F_SETFL, oldf);
- 
-  if(ch != EOF)
-  {
-    ungetc(ch, stdin);
-    return 1;
-  }
- 
-  return 0;
+    struct termios oldt, newt;
+    int ch;
+    int oldf;
+
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+    ch = getchar();
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+    if (ch != EOF) {
+        ungetc(ch, stdin);
+        return 1;
+    }
+
+    return 0;
 }
 //Referenced to https://cboard.cprogramming.com/c-programming/63166-kbhit-linux.html
-int main(int argc, char *argv[]) {
 
-    
+int main(int argc, char *argv[]) {
+char userInput[BUFFER];
     //parameters for parser
 
     char* command;
@@ -671,7 +709,7 @@ loopOne:
         printf("please enter one of the following commands:\n/login\n/logout\n/register\n/quit\n");
         //        fgets(userInput, sizeof (userInput), stdin);
 
-        char userInput[BUFFER] = {'\0'};
+        char userInput[BUFFER];
         autoComplete(userInput);
         uargc = 0;
 
@@ -773,8 +811,10 @@ loopTwo:
 
     while (1) {
         printf("please enter one of the following commands:\n/joinsession\n/createsession\n/list\n/quit\n");
-        char userInput[BUFFER] = {'\0'};
+        
+      
         autoComplete(userInput);
+
         uargc = 0;
 
         //removing the trailing newline character
@@ -889,7 +929,7 @@ loopTwo:
             continue;
         }
 
-        if (FD_ISSET(STDIN,&readfds)) {
+        if (FD_ISSET(STDIN, &readfds)) {
             userHandler();
             continue;
         }
